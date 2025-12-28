@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>월별 매출 & 예상 수익</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      background-color: #f5f5f5;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background-color: #ffffff;
+    }
+
+    header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .header-row label {
+      white-space: nowrap;
+    }
+
+    .header-row select {
+      flex: 1;
+      padding: 6px 8px;
+      font-size: 14px;
+    }
+
+    /* 달력 */
+    .calendar {
+      padding: 12px 8px 8px;
+    }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 4px;
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .day-cell {
+      min-height: 52px;
+      border-radius: 6px;
+      border: 1px solid #eee;
+      padding: 4px;
+      box-sizing: border-box;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      cursor: pointer;
+    }
+
+    .day-cell.empty {
+      background-color: #fafafa;
+      cursor: default;
+    }
+
+    .day-number {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .day-amount {
+      font-size: 11px;
+      color: #2b7cff;
+      margin-top: auto;
+      word-break: break-all;
+    }
+
+    .day-cell.selected {
+      border-color: #2b7cff;
+      box-shadow: 0 0 0 1px #2b7cff33;
+    }
+
+    /* 일별 입력 패널 */
+    .input-panel {
+      padding: 10px 16px 12px;
+      border-top: 1px solid #eee;
+      border-bottom: 1px solid #eee;
+      background-color: #fafafa;
+    }
+
+    .input-panel-title {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .input-panel-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .input-panel-row input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .input-panel-row button {
+      padding: 10px 14px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      background-color: #2b7cff;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    /* 심평원 금액 입력 패널 */
+    .hira-panel {
+      padding: 10px 16px 12px;
+      border-bottom: 1px solid #eee;
+      background-color: #fafafa;
+      font-size: 14px;
+    }
+
+    .hira-panel label {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .hira-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .hira-row input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    .hira-row button {
+      padding: 10px 14px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      background-color: #2b7cff;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    /* 요약 바 */
+    .summary-bar {
+      margin-top: auto;
+      border-top: 1px solid #eee;
+      padding: 12px 16px 16px;
+      background-color: #fafafa;
+      font-size: 14px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .summary-label {
+      color: #666;
+    }
+
+    .summary-value {
+      font-weight: 600;
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>월별 매출 & 예상 수익</h1>
+      <div class="header-row">
+        <label for="monthSelect">월 선택</label>
+        <select id="monthSelect"></select>
+      </div>
+    </header>
+
+    <!-- 달력 -->
+    <div class="calendar">
+      <div class="weekdays">
+        <div>일</div>
+        <div>월</div>
+        <div>화</div>
+        <div>수</div>
+        <div>목</div>
+        <div>금</div>
+        <div>토</div>
+      </div>
+      <div class="days" id="calendarDays"></div>
+    </div>
+
+    <!-- 일별 입력 패널 -->
+    <div class="input-panel">
+      <div class="input-panel-title" id="selectedDateText">
+        날짜를 선택해주세요
+      </div>
+      <div class="input-panel-row">
+        <input
+          id="dailyAmountInput"
+          type="text"
+          inputmode="decimal"
+          placeholder="해당 날짜 매출 금액"
+        />
+        <button id="saveAmountBtn">저장</button>
+      </div>
+    </div>
+
+    <!-- 심평원 금액 입력 -->
+    <div class="hira-panel">
+      <label for="hiraInput">이 달 건강보험심사평가원 금액</label>
+      <div class="hira-row">
+        <input
+          id="hiraInput"
+          type="text"
+          inputmode="decimal"
+          placeholder="심평원 금액 입력"
+        />
+        <button id="saveHiraBtn">저장</button>
+      </div>
+    </div>
+
+    <!-- 요약 영역 -->
+    <div class="summary-bar">
+      <div class="summary-row">
+        <span class="summary-label">월별 합계 (일별 합계)</span>
+        <span class="summary-value" id="summaryMonthlyTotal">0원</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">심평원 금액</span>
+        <span class="summary-value" id="summaryHira">0원</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">총 매출<br/>(월합계 + 심평원)</span>
+        <span class="summary-value" id="summaryGross">0원</span>
+      </div>
+      <div class="summary-row">
+        <span class="summary-label">
+          예상 수익<br/>
+          (총매출 - 45,000,000의 1%)
+        </span>
+        <span class="summary-value" id="summaryExpected">0원</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 공통 포맷 함수 =====
+    function uncomma(str) {
+      return String(str).replace(/[^0-9]/g, '');
+    }
+
+    function addComma(str) {
+      return String(str).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function formatWon(value) {
+      return new Intl.NumberFormat('ko-KR').format(value);
+    }
+
+    // ===== 상태 값 =====
+    const amountsByDate = {}; // { 'YYYY-MM-DD': number }
+    const hiraByMonth = {};   // { 'YYYY-MM': number }
+
+    let currentYear;
+    let currentMonth; // 1~12
+    let selectedDateKey = null;
+
+    // ===== DOM 요소 =====
+    const monthSelect = document.getElementById('monthSelect');
+    const calendarDays = document.getElementById('calendarDays');
+    const selectedDateText = document.getElementById('selectedDateText');
+    const dailyAmountInput = document.getElementById('dailyAmountInput');
+    const saveAmountBtn = document.getElementById('saveAmountBtn');
+
+    const hiraInput = document.getElementById('hiraInput');
+    const saveHiraBtn = document.getElementById('saveHiraBtn');
+
+    const summaryMonthlyTotal = document.getElementById('summaryMonthlyTotal');
+    const summaryHira = document.getElementById('summaryHira');
+    const summaryGross = document.getElementById('summaryGross');
+    const summaryExpected = document.getElementById('summaryExpected');
+
+    // ===== 초기 월 선택 옵션 채우기 =====
+    function initMonthSelect() {
+      const now = new Date();
+      const thisYear = now.getFullYear();
+      const thisMonth = now.getMonth() + 1;
+
+      // 필요 시 범위를 늘릴 수 있음 (예: 2024~2026년)
+      for (let y = thisYear - 1; y <= thisYear + 1; y++) {
+        for (let m = 1; m <= 12; m++) {
+          const value = `${y}-${String(m).padStart(2, '0')}`;
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = `${y}년 ${m}월`;
+          monthSelect.appendChild(option);
+        }
+      }
+
+      const thisValue = `${thisYear}-${String(thisMonth).padStart(2, '0')}`;
+      monthSelect.value = thisValue;
+      const [y, m] = thisValue.split('-').map(Number);
+      currentYear = y;
+      currentMonth = m;
+    }
+
+    // ===== 날짜 키 / 월 키 =====
+    function makeDateKey(y, m, d) {
+      const mm = String(m).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      return `${y}-${mm}-${dd}`;
+    }
+
+    function makeMonthKey(y, m) {
+      const mm = String(m).padStart(2, '0');
+      return `${y}-${mm}`;
+    }
+
+    // ===== 달력 생성 =====
+    function buildCalendar() {
+      const year = currentYear;
+      const monthIndex = currentMonth - 1; // JS Date: 0~11
+
+      const firstDay = new Date(year, monthIndex, 1);
+      const lastDay = new Date(year, monthIndex + 1, 0);
+
+      const startWeekday = firstDay.getDay();
+      const totalDays = lastDay.getDate();
+
+      calendarDays.innerHTML = '';
+
+      // 빈 칸
+      for (let i = 0; i < startWeekday; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'day-cell empty';
+        calendarDays.appendChild(cell);
+      }
+
+      // 실제 날짜 칸
+      for (let day = 1; day <= totalDays; day++) {
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        cell.dataset.day = day;
+
+        const dayNumberDiv = document.createElement('div');
+        dayNumberDiv.className = 'day-number';
+        dayNumberDiv.textContent = day;
+
+        const amountDiv = document.createElement('div');
+        amountDiv.className = 'day-amount';
+
+        const dateKey = makeDateKey(year, currentMonth, day);
+        const amount = amountsByDate[dateKey];
+        if (amount != null) {
+          amountDiv.textContent = formatWon(amount) + '원';
+        }
+
+        cell.appendChild(dayNumberDiv);
+        cell.appendChild(amountDiv);
+
+        // 현재 선택된 날짜이면 표시
+        if (selectedDateKey === dateKey) {
+          cell.classList.add('selected');
+        }
+
+        cell.addEventListener('click', () => {
+          onClickDayCell(cell, day);
+        });
+
+        calendarDays.appendChild(cell);
+      }
+    }
+
+    function onClickDayCell(cell, day) {
+      if (cell.classList.contains('empty')) return;
+
+      document
+        .querySelectorAll('.day-cell.selected')
+        .forEach((c) => c.classList.remove('selected'));
+
+      cell.classList.add('selected');
+
+      const dateKey = makeDateKey(currentYear, currentMonth, day);
+      selectedDateKey = dateKey;
+
+      selectedDateText.textContent = `선택된 날짜: ${dateKey}`;
+
+      const amount = amountsByDate[dateKey];
+      if (amount != null) {
+        dailyAmountInput.value = addComma(amount.toString());
+      } else {
+        dailyAmountInput.value = '';
+      }
+
+      dailyAmountInput.focus();
+    }
+
+    // ===== 월별 합계 계산 =====
+    function getMonthlyTotal(year, month) {
+      let total = 0;
+      for (const [dateKey, amount] of Object.entries(amountsByDate)) {
+        const d = new Date(dateKey);
+        const y = d.getFullYear();
+        const m = d.getMonth() + 1;
+        if (y === year && m === month) {
+          total += amount;
+        }
+      }
+      return total;
+    }
+
+    // ===== 월별 요약 계산 =====
+    function calculateMonthlySummary(year, month) {
+      const monthKey = makeMonthKey(year, month);
+      const monthlyTotal = getMonthlyTotal(year, month);
+      const hiraAmount = hiraByMonth[monthKey] || 0;
+
+      const gross = monthlyTotal + hiraAmount;
+      const base = Math.max(gross - 45000000, 0);
+      const expected = base * 0.01; // 나중에 반올림
+
+      return { monthlyTotal, hiraAmount, gross, expected };
+    }
+
+    function updateSummaryUI() {
+      const { monthlyTotal, hiraAmount, gross, expected } =
+        calculateMonthlySummary(currentYear, currentMonth);
+
+      summaryMonthlyTotal.textContent = formatWon(monthlyTotal) + '원';
+      summaryHira.textContent = formatWon(hiraAmount) + '원';
+      summaryGross.textContent = formatWon(gross) + '원';
+      summaryExpected.textContent =
+        formatWon(Math.round(expected)) + '원'; // 반올림 후 정수
+    }
+
+    // ===== 입력창 콤마 처리 =====
+    dailyAmountInput.addEventListener('input', () => {
+      const raw = uncomma(dailyAmountInput.value);
+      if (raw === '') {
+        dailyAmountInput.value = '';
+        return;
+      }
+      dailyAmountInput.value = addComma(raw);
+    });
+
+    hiraInput.addEventListener('input', () => {
+      const raw = uncomma(hiraInput.value);
+      if (raw === '') {
+        hiraInput.value = '';
+        return;
+      }
+      hiraInput.value = addComma(raw);
+    });
+
+    // ===== 버튼 동작 =====
+    saveAmountBtn.addEventListener('click', () => {
+      if (!selectedDateKey) {
+        alert('먼저 날짜를 선택해주세요.');
+        return;
+      }
+
+      const raw = uncomma(dailyAmountInput.value);
+      if (raw === '') {
+        delete amountsByDate[selectedDateKey];
+      } else {
+        const num = Number(raw);
+        if (isNaN(num) || num < 0) {
+          alert('금액은 0 이상 숫자로 입력해주세요.');
+          return;
+        }
+        amountsByDate[selectedDateKey] = num;
+      }
+
+      buildCalendar();
+      updateSummaryUI();
+    });
+
+    saveHiraBtn.addEventListener('click', () => {
+      const raw = uncomma(hiraInput.value);
+      const monthKey = makeMonthKey(currentYear, currentMonth);
+
+      if (raw === '') {
+        delete hiraByMonth[monthKey];
+      } else {
+        const num = Number(raw);
+        if (isNaN(num) || num < 0) {
+          alert('금액은 0 이상 숫자로 입력해주세요.');
+          return;
+        }
+        hiraByMonth[monthKey] = num;
+      }
+
+      updateSummaryUI();
+    });
+
+    // ===== 월 변경 시 =====
+    monthSelect.addEventListener('change', () => {
+      const [y, m] = monthSelect.value.split('-').map(Number);
+      currentYear = y;
+      currentMonth = m;
+      selectedDateKey = null;
+      selectedDateText.textContent = '날짜를 선택해주세요';
+
+      // 심평원 금액 input 채우기
+      const monthKey = makeMonthKey(currentYear, currentMonth);
+      const hiraAmount = hiraByMonth[monthKey];
+      if (hiraAmount != null) {
+        hiraInput.value = addComma(hiraAmount.toString());
+      } else {
+        hiraInput.value = '';
+      }
+
+      buildCalendar();
+      updateSummaryUI();
+    });
+
+    // ===== 초기 실행 =====
+    initMonthSelect();
+    // 현재 월 심평원 금액 input 초기화
+    (function initHiraInputForCurrentMonth() {
+      const monthKey = makeMonthKey(currentYear, currentMonth);
+      const hiraAmount = hiraByMonth[monthKey];
+      if (hiraAmount != null) {
+        hiraInput.value = addComma(hiraAmount.toString());
+      }
+    })();
+    buildCalendar();
+    updateSummaryUI();
+  </script>
+</body>
+</html>
